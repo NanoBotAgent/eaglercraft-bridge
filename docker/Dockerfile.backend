@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:25-jre-noble
 WORKDIR /backend
 COPY backend/ .
 EXPOSE 25566
