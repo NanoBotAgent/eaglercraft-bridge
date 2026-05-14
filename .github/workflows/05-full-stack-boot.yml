@@ -23,14 +23,21 @@ jobs:
           distribution: temurin
           java-version: "25"
 
-      - name: Make scripts executable
-        run: chmod +x scripts/*.sh
+  - name: Make scripts executable
+    run: chmod +x scripts/*.sh
 
-      - name: Download all dependencies
-        run: bash scripts/download_all.sh
+  - name: Download all dependencies
+    run: bash scripts/download_all.sh
 
-      - name: Start backend
-        run: bash scripts/start_backend.sh
+  - uses: actions/setup-python@v5
+    with:
+      python-version: "3.11"
+
+  - name: Install Python deps
+    run: pip install -r requirements.txt -q
+
+  - name: Start backend
+    run: bash scripts/start_backend.sh
 
       - name: Wait for backend
         run: bash scripts/wait_for_backend.sh
