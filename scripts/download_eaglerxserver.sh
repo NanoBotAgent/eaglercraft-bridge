@@ -10,7 +10,7 @@ DEST="${DEST_DIR}/EaglerXServer.jar"
 
 mkdir -p "$DEST_DIR"
 
-[INFO] Fetching latest EaglerXServer release info..."
+echo "[INFO] Fetching latest EaglerXServer release info..."
 
 API_RESPONSE=$(curl -sSf "https://api.github.com/repos/lax1dude/eaglerxserver/releases/latest") || {
     echo "[ERROR] Failed to fetch EaglerXServer release info from GitHub API" >&2
