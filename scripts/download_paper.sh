@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Downloads the latest Paper 26.1.2 build via PaperMC fill-data API
-# Paper API v1 uses SHA-based download URLs, not the v2 path-style URLs
+# Downloads the latest stable Paper 26.1.2 build via PaperMC fill API v3
+# v3 API: https://fill.papermc.io/v3/projects/paper/versions/26.1.2/builds
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST_DIR="${SCRIPT_DIR}/../backend"
@@ -12,44 +12,33 @@ mkdir -p "$DEST_DIR"
 
 echo "[INFO] Fetching Paper 26.1.2 builds list..."
 
-BUILDS_JSON=$(curl -sSf "https://api.papermc.io/v2/projects/paper/versions/26.1.2/builds") || {
+BUILDS_JSON=$(curl -sSf -H "User-Agent: eaglercraft-bridge/1.0" \
+  "https://fill.papermc.io/v3/projects/paper/versions/26.1.2/builds") || {
   echo "[ERROR] Failed to fetch Paper 26.1.2 builds from PaperMC API" >&2
   exit 1
 }
 
-BUILD_AND_SHA=$(echo "$BUILDS_JSON" | python3 -c "
+DOWNLOAD_URL=$(echo "$BUILDS_JSON" | python3 -c "
 import sys, json
-builds = json.load(sys.stdin).get('builds', [])
+builds = json.load(sys.stdin)
 if not builds:
     sys.exit(1)
-latest = max(builds, key=lambda b: b.get('build', 0))
-build_num = latest['build']
-# Find the paper jar download entry
-for ch in latest.get('changes', []):
-    pass  # changes don't have SHA
-downloads = latest.get('downloads', {})
-paper_dl = downloads.get('application', downloads.get('paper', {}))
-sha = paper_dl.get('sha256', '') if isinstance(paper_dl, dict) else ''
-print(f'{build_num} {sha}')
+# Prefer stable builds, fall back to latest any channel
+stable = [b for b in builds if b.get('channel') == 'STABLE']
+latest = stable[-1] if stable else builds[-1]
+dl = latest.get('downloads', {}).get('server:default', {})
+url = dl.get('url', '')
+if not url:
+    sys.exit(1)
+print(url)
 ") || {
   echo "[ERROR] Failed to parse Paper 26.1.2 build list" >&2
   exit 1
 }
 
-BUILD=$(echo "$BUILD_AND_SHA" | awk '{print $1}')
-SHA=$(echo "$BUILD_AND_SHA" | awk '{print $2}')
-
-if [ -n "$SHA" ]; then
-  # fill-data API v1 with SHA
-  DOWNLOAD_URL="https://fill-data.papermc.io/v1/objects/${SHA}/paper-26.1.2-${BUILD}.jar"
-else
-  # Fallback to v2 API path-style URL
-  DOWNLOAD_URL="https://api.papermc.io/v2/projects/paper/versions/26.1.2/builds/${BUILD}/downloads/paper-26.1.2-${BUILD}.jar"
-fi
-
-echo "[INFO] Downloading Paper 26.1.2 build #${BUILD}..."
+echo "[INFO] Downloading Paper 26.1.2 from ${DOWNLOAD_URL}..."
 curl -sSfL -o "$DEST" "$DOWNLOAD_URL" || {
-  echo "[ERROR] Failed to download Paper 26.1.2 build #${BUILD}" >&2
+  echo "[ERROR] Failed to download Paper 26.1.2" >&2
   exit 1
 }
 
@@ -60,4 +49,4 @@ if [ "$SIZE" -lt 10485760 ]; then
   exit 1
 fi
 
-echo "[INFO] Downloaded Paper 26.1.2 build #${BUILD} -> ${DEST}"
+echo "[INFO] Downloaded Paper 26.1.2 -> ${DEST} (${SIZE} bytes)"
