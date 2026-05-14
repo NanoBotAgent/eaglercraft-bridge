@@ -82,4 +82,4 @@ jobs:
             backend/paper-26.1.2.jar
 
       - name: Summary
-        run: echo "=== PASS: All plugins downloaded and verified ==="
+        run: 'echo "=== PASS: All plugins downloaded and verified ==="'

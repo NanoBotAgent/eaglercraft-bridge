@@ -69,4 +69,4 @@ jobs:
           path: proxy/logs/
 
       - name: Summary
-        run: echo "=== PASS: Proxy booted with EaglerXServer ==="
+        run: 'echo "=== PASS: Proxy booted with EaglerXServer ==="'

@@ -103,4 +103,4 @@ jobs:
             backend/logs/
 
       - name: Summary
-        run: echo "=== PASS: Config integrity verified ==="
+        run: 'echo "=== PASS: Config integrity verified ==="'

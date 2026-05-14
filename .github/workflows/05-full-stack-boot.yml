@@ -68,4 +68,4 @@ jobs:
             backend/logs/
 
       - name: Summary
-        run: echo "=== PASS: Full stack booted successfully ==="
+        run: 'echo "=== PASS: Full stack booted successfully ==="'

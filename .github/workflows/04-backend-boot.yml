@@ -65,4 +65,4 @@ jobs:
           path: backend/logs/
 
       - name: Summary
-        run: echo "=== PASS: Paper 26.1.2 backend booted ==="
+        run: 'echo "=== PASS: Paper 26.1.2 backend booted ==="'
