@@ -1,0 +1,30 @@
+# Downloaded JARs (fetched at runtime)
+proxy/BungeeCord.jar
+proxy/plugins/EaglerXServer.jar
+proxy/plugins/ViaVersion-*.jar
+proxy/plugins/ViaBackwards-*.jar
+backend/paper-26.1.2.jar
+
+# Generated at runtime
+proxy/logs/
+backend/logs/
+backend/world/
+backend/cache/
+proxy/server.pid
+backend/server.pid
+
+# Plugin generated configs (created on first boot)
+proxy/plugins/EaglerXServer/
+proxy/plugins/ViaVersion/
+proxy/plugins/ViaBackwards/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+test-results/
+test_results/
+
+# OS
+.DS_Store
+Thumbs.db

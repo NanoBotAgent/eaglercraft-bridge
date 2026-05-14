@@ -1,0 +1,5 @@
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /backend
+COPY backend/ .
+EXPOSE 25566
+CMD ["java", "-Xms512M", "-Xmx2G", "-XX:+UseG1GC", "-jar", "paper-26.1.2.jar", "nogui"]

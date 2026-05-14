@@ -1,0 +1,72 @@
+# Tests that the BungeeCord proxy boots with EaglerXServer loaded.
+# Validates the proxy can start independently of the backend.
+
+name: "03 - Proxy Boot"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  proxy-boot:
+    name: Boot BungeeCord Proxy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download proxy dependencies
+        run: |
+          bash scripts/download_bungeecord.sh
+          bash scripts/download_eaglerxserver.sh
+          bash scripts/download_viaversion.sh
+          bash scripts/download_viabackwards.sh
+
+      - name: Start proxy
+        run: bash scripts/start_proxy.sh
+
+      - name: Wait for proxy to boot
+        run: |
+          timeout 60 bash -c 'while ! grep -q "Listening on" proxy/logs/latest.log 2>/dev/null; do sleep 2; done' || {
+            echo "[FAIL] Proxy did not boot within 60 seconds" >&2
+            exit 1
+          }
+          echo "[PASS] Proxy booted successfully"
+
+      - name: Check EaglerXServer loaded
+        run: |
+          LOG="proxy/logs/latest.log"
+          grep -q "EaglerXServer" "$LOG" || { echo "[FAIL] EaglerXServer not found in logs" >&2; exit 1; }
+          ! grep -q "Could not load 'plugins/EaglerXServer.jar'" "$LOG" || { echo "[FAIL] EaglerXServer load error" >&2; exit 1; }
+          ! grep -q "UnsupportedClassVersionError" "$LOG" || { echo "[FAIL] Java version error" >&2; exit 1; }
+          echo "[PASS] EaglerXServer loaded successfully"
+
+      - name: Stop proxy
+        if: always()
+        run: |
+          if [ -f proxy/server.pid ]; then
+            kill "$(cat proxy/server.pid)" 2>/dev/null || true
+            sleep 3
+            kill -9 "$(cat proxy/server.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload proxy logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proxy-boot-logs
+          path: proxy/logs/
+
+      - name: Summary
+        run: echo "=== PASS: Proxy booted with EaglerXServer ==="

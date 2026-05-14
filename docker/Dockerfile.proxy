@@ -1,0 +1,5 @@
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /proxy
+COPY proxy/ .
+EXPOSE 25565
+CMD ["java", "-Xms256M", "-Xmx512M", "-XX:+UseG1GC", "-jar", "BungeeCord.jar"]

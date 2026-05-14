@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    ports: []  # NOT exposed publicly - internal only
+    networks:
+      - mcnet
+    volumes:
+      - backend-world:/backend/world
+      - ./backend/logs:/backend/logs
+
+  proxy:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.proxy
+    ports:
+      - "25565:25565"
+    networks:
+      - mcnet
+    depends_on:
+      - backend
+    volumes:
+      - ./proxy/logs:/proxy/logs
+
+networks:
+  mcnet:
+    driver: bridge
+
+volumes:
+  backend-world:

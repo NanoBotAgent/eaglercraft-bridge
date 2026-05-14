@@ -1,0 +1,63 @@
+# Tests that invalid packets don't crash the proxy or backend.
+# Validates graceful error handling under malformed input.
+
+name: "11 - Crash Recovery"
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  crash-recovery:
+    name: Test Crash Recovery After Invalid Packets
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download all dependencies
+        run: bash scripts/download_all.sh
+
+      - name: Install test dependencies
+        run: pip install -r requirements.txt -q
+
+      - name: Start full stack
+        run: bash scripts/start_all.sh
+
+      - name: Run crash recovery test
+        run: |
+          PROXY_PID_FILE="$(pwd)/proxy/server.pid" \
+          BACKEND_PID_FILE="$(pwd)/backend/server.pid" \
+          pytest tests/test_10_crash_recovery.py -v \
+            --junitxml=test-results/crash-recovery.xml
+
+      - name: Stop all
+        if: always()
+        run: bash scripts/stop_all.sh || true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: crash-recovery-test-results
+          path: |
+            test-results/
+            proxy/logs/
+            backend/logs/
+
+      - name: Summary
+        if: always()
+        run: echo "=== Crash recovery test complete ==="

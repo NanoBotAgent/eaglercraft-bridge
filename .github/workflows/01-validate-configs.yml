@@ -1,0 +1,96 @@
+# Validates all configuration files have correct values and syntax.
+# Catches misconfigurations before they reach the servers.
+
+name: "01 - Validate Configs"
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate Configuration Files
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PyYAML
+        run: pip install pyyaml -q
+
+      - name: Check backend server.properties
+        run: |
+          FILE="backend/server.properties"
+          ERRORS=""
+          grep -q "online-mode=false" "$FILE" || ERRORS="$ERRORS\n  Missing: online-mode=false"
+          grep -q "server-port=25566" "$FILE" || ERRORS="$ERRORS\n  Missing: server-port=25566"
+          if [ -n "$ERRORS" ]; then
+            echo "[FAIL] backend/server.properties:$ERRORS" >&2
+            exit 1
+          fi
+          echo "[PASS] backend/server.properties"
+
+      - name: Check backend spigot.yml
+        run: |
+          FILE="backend/spigot.yml"
+          grep -q "bungeecord: true" "$FILE" || { echo "[FAIL] Missing: bungeecord: true in $FILE" >&2; exit 1; }
+          echo "[PASS] backend/spigot.yml"
+
+      - name: Check backend eula.txt
+        run: |
+          FILE="backend/eula.txt"
+          grep -q "eula=true" "$FILE" || { echo "[FAIL] Missing: eula=true in $FILE" >&2; exit 1; }
+          echo "[PASS] backend/eula.txt"
+
+      - name: Check proxy config.yml
+        run: |
+          FILE="proxy/config.yml"
+          ERRORS=""
+          grep -q "online_mode: false" "$FILE" || ERRORS="$ERRORS\n  Missing: online_mode: false"
+          grep -q "address: localhost:25566" "$FILE" || ERRORS="$ERRORS\n  Missing: address: localhost:25566"
+          if [ -n "$ERRORS" ]; then
+            echo "[FAIL] proxy/config.yml:$ERRORS" >&2
+            exit 1
+          fi
+          echo "[PASS] proxy/config.yml"
+
+      - name: Validate YAML syntax
+        run: |
+          python3 -c "
+          import yaml, glob, sys
+          errors = []
+          for f in glob.glob('**/*.yml', recursive=True):
+              try:
+                  with open(f) as fh:
+                      yaml.safe_load(fh)
+              except Exception as e:
+                  errors.append(f'{f}: {e}')
+          if errors:
+              for e in errors:
+                  print(f'[FAIL] {e}', file=sys.stderr)
+              sys.exit(1)
+          print('[PASS] All YAML files valid')
+          "
+
+      - name: Check scripts have execute permission
+        run: |
+          ERRORS=""
+          for f in scripts/*.sh; do
+            if [ ! -x "$f" ]; then
+              ERRORS="$ERRORS\n  Not executable: $f"
+            fi
+          done
+          if [ -n "$ERRORS" ]; then
+            echo "[FAIL] Script permissions:$ERRORS" >&2
+            exit 1
+          fi
+          echo "[PASS] All scripts have execute permission"
+
+      - name: Summary
+        run: echo "=== PASS: All configuration validations passed ==="

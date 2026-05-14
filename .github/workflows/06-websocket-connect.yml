@@ -1,0 +1,61 @@
+# Tests WebSocket connectivity to the EaglerXServer endpoint.
+# Validates that browser clients can upgrade to WebSocket.
+
+name: "06 - WebSocket Connect"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  websocket:
+    name: Test WebSocket Connection
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download all dependencies
+        run: bash scripts/download_all.sh
+
+      - name: Install test dependencies
+        run: pip install -r requirements.txt -q
+
+      - name: Start full stack
+        run: bash scripts/start_all.sh
+
+      - name: Run WebSocket upgrade test
+        run: pytest tests/test_03_websocket_upgrade.py -v --junitxml=test-results/websocket.xml
+
+      - name: Stop all
+        if: always()
+        run: bash scripts/stop_all.sh || true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: websocket-test-results
+          path: |
+            test-results/
+            proxy/logs/
+            backend/logs/
+
+      - name: Summary
+        if: always()
+        run: echo "=== WebSocket test complete ==="

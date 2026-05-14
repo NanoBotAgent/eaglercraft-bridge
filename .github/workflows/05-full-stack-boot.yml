@@ -1,0 +1,71 @@
+# Tests full stack boot - backend + proxy both running and connected.
+# Validates the proxy can reach the backend and both survive.
+
+name: "05 - Full Stack Boot"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  full-stack:
+    name: Boot Backend + Proxy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download all dependencies
+        run: bash scripts/download_all.sh
+
+      - name: Start backend
+        run: bash scripts/start_backend.sh
+
+      - name: Wait for backend
+        run: bash scripts/wait_for_backend.sh
+
+      - name: Start proxy
+        run: bash scripts/start_proxy.sh
+
+      - name: Wait for proxy
+        run: bash scripts/wait_for_proxy.sh
+
+      - name: Verify both PIDs alive
+        run: |
+          kill -0 "$(cat backend/server.pid)" 2>/dev/null || { echo "[FAIL] Backend crashed" >&2; exit 1; }
+          kill -0 "$(cat proxy/server.pid)" 2>/dev/null || { echo "[FAIL] Proxy crashed" >&2; exit 1; }
+          echo "[PASS] Both servers running"
+
+      - name: Check proxy connected to backend
+        run: |
+          LOG="proxy/logs/latest.log"
+          grep -q "backend" "$LOG" 2>/dev/null || {
+            echo "[WARN] Backend server name not found in proxy log (may take longer to register)"
+          }
+
+      - name: Stop all
+        if: always()
+        run: bash scripts/stop_all.sh || true
+
+      - name: Upload all logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-stack-logs
+          path: |
+            proxy/logs/
+            backend/logs/
+
+      - name: Summary
+        run: echo "=== PASS: Full stack booted successfully ==="

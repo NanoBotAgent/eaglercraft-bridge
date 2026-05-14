@@ -1,0 +1,25 @@
+server_connect_timeout: 5000
+listeners:
+- query_port: 25565
+  motd: '&aEaglercraft Server'
+  tab_list: GLOBAL_PING
+  query_enabled: true
+  proxy_protocol: false
+  forced_hosts: {}
+  ping_passthrough: false
+  priorities:
+  - backend
+  bind_local_address: true
+  host: 0.0.0.0:25565
+  max_players: 100
+  force_default_server: false
+  tab_size: 60
+servers:
+  backend:
+    motd: '&1Backend'
+    address: localhost:25566
+    restricted: false
+groups: {}
+permissions: {}
+online_mode: false
+ip_forward: true

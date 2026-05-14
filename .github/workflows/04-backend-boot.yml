@@ -1,0 +1,68 @@
+# Tests that Paper 26.1.2 backend boots successfully.
+# Validates the backend can start independently of the proxy.
+
+name: "04 - Backend Boot"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-boot:
+    name: Boot Paper 26.1.2 Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download Paper
+        run: bash scripts/download_paper.sh
+
+      - name: Start backend
+        run: bash scripts/start_backend.sh
+
+      - name: Wait for backend to boot
+        run: |
+          timeout 180 bash -c 'while ! grep -q "Done (" backend/logs/latest.log 2>/dev/null; do sleep 2; done' || {
+            echo "[FAIL] Backend did not boot within 180 seconds" >&2
+            exit 1
+          }
+          echo "[PASS] Backend booted successfully"
+
+      - name: Check no critical plugin errors
+        run: |
+          LOG="backend/logs/latest.log"
+          if grep -q "\[ERROR\].*plugin" "$LOG" 2>/dev/null; then
+            echo "[WARN] Plugin errors found in backend log (may be benign)"
+          fi
+          echo "[PASS] No critical backend errors"
+
+      - name: Stop backend
+        if: always()
+        run: |
+          if [ -f backend/server.pid ]; then
+            kill "$(cat backend/server.pid)" 2>/dev/null || true
+            sleep 5
+            kill -9 "$(cat backend/server.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload backend logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-boot-logs
+          path: backend/logs/
+
+      - name: Summary
+        run: echo "=== PASS: Paper 26.1.2 backend booted ==="

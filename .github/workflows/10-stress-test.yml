@@ -1,0 +1,64 @@
+# Stress tests 100 sequential WebSocket connections with timing.
+# Validates server stability and connection performance under load.
+
+name: "10 - Stress Test"
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 2 * * 0"  # Weekly on Sunday 02:00 UTC
+
+jobs:
+  stress:
+    name: 100 Sequential Connections
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download all dependencies
+        run: bash scripts/download_all.sh
+
+      - name: Install test dependencies
+        run: pip install -r requirements.txt -q
+
+      - name: Start full stack
+        run: bash scripts/start_all.sh
+
+      - name: Run stress test
+        run: |
+          pytest tests/test_09_stress.py -v --timeout=180 \
+            --junitxml=test-results/stress.xml
+
+      - name: Stop all
+        if: always()
+        run: bash scripts/stop_all.sh || true
+
+      - name: Upload test results + timing CSV
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stress-test-results
+          path: |
+            test-results/
+            test_results/
+            proxy/logs/
+            backend/logs/
+
+      - name: Summary
+        if: always()
+        run: echo "=== Stress test complete ==="

@@ -1,0 +1,85 @@
+# Downloads all plugin JARs and verifies they are valid.
+# Ensures download scripts work and JARs meet size requirements.
+
+name: "02 - Download & Verify Plugins"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * 0"  # Weekly on Sunday
+
+jobs:
+  download-verify:
+    name: Download and Verify All Plugins
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Run download_all.sh
+        run: bash scripts/download_all.sh
+
+      - name: Verify EaglerXServer.jar
+        run: |
+          FILE="proxy/plugins/EaglerXServer.jar"
+          [ -f "$FILE" ] || { echo "[FAIL] $FILE not found" >&2; exit 1; }
+          SIZE=$(stat -c%s "$FILE")
+          [ "$SIZE" -gt 1048576 ] || { echo "[FAIL] $FILE is only ${SIZE} bytes (expected >1MB)" >&2; exit 1; }
+          echo "[PASS] EaglerXServer.jar: ${SIZE} bytes"
+
+      - name: Verify ViaVersion jar
+        run: |
+          FILE=$(ls proxy/plugins/ViaVersion-*.jar 2>/dev/null | head -1)
+          [ -n "$FILE" ] || { echo "[FAIL] ViaVersion jar not found" >&2; exit 1; }
+          SIZE=$(stat -c%s "$FILE")
+          [ "$SIZE" -gt 1048576 ] || { echo "[FAIL] ${FILE} is only ${SIZE} bytes" >&2; exit 1; }
+          echo "[PASS] ViaVersion: ${SIZE} bytes"
+
+      - name: Verify ViaBackwards jar
+        run: |
+          FILE=$(ls proxy/plugins/ViaBackwards-*.jar 2>/dev/null | head -1)
+          [ -n "$FILE" ] || { echo "[FAIL] ViaBackwards jar not found" >&2; exit 1; }
+          SIZE=$(stat -c%s "$FILE")
+          [ "$SIZE" -gt 1048576 ] || { echo "[FAIL] ${FILE} is only ${SIZE} bytes" >&2; exit 1; }
+          echo "[PASS] ViaBackwards: ${SIZE} bytes"
+
+      - name: Verify BungeeCord.jar
+        run: |
+          FILE="proxy/BungeeCord.jar"
+          [ -f "$FILE" ] || { echo "[FAIL] $FILE not found" >&2; exit 1; }
+          SIZE=$(stat -c%s "$FILE")
+          [ "$SIZE" -gt 1048576 ] || { echo "[FAIL] $FILE is only ${SIZE} bytes" >&2; exit 1; }
+          echo "[PASS] BungeeCord.jar: ${SIZE} bytes"
+
+      - name: Verify Paper 26.1.2 jar
+        run: |
+          FILE="backend/paper-26.1.2.jar"
+          [ -f "$FILE" ] || { echo "[FAIL] $FILE not found" >&2; exit 1; }
+          SIZE=$(stat -c%s "$FILE")
+          [ "$SIZE" -gt 10485760 ] || { echo "[FAIL] $FILE is only ${SIZE} bytes (expected >10MB)" >&2; exit 1; }
+          echo "[PASS] Paper 26.1.2: ${SIZE} bytes"
+
+      - name: Upload JARs as artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: downloaded-jars
+          path: |
+            proxy/BungeeCord.jar
+            proxy/plugins/*.jar
+            backend/paper-26.1.2.jar
+
+      - name: Summary
+        run: echo "=== PASS: All plugins downloaded and verified ==="

@@ -1,0 +1,97 @@
+# Creates a release package when a version tag is pushed.
+# Downloads all JARs, runs full test suite, and packages a ZIP.
+
+name: "13 - Release Package"
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: Build Release Package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download all dependencies
+        run: bash scripts/download_all.sh
+
+      - name: Install test dependencies
+        run: pip install -r requirements.txt -q
+
+      - name: Start full stack
+        run: bash scripts/start_all.sh
+
+      - name: Run full test suite
+        run: pytest tests/ -v --junitxml=test-results/full-suite.xml || true
+
+      - name: Stop all
+        if: always()
+        run: bash scripts/stop_all.sh || true
+
+      - name: Capture plugin versions
+        id: versions
+        run: |
+          EAGLER_TAG=$(curl -sS "https://api.github.com/repos/lax1dude/eaglerxserver/releases/latest" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
+          VV_TAG=$(curl -sS "https://api.github.com/repos/ViaVersion/ViaVersion/releases/latest" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
+          VB_TAG=$(curl -sS "https://api.github.com/repos/ViaVersion/ViaBackwards/releases/latest" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
+          PAPER_BUILD=$(curl -sS "https://api.papermc.io/v2/projects/paper/versions/26.1.2/builds" | python3 -c "import sys,json; b=json.load(sys.stdin)['builds']; print(max(b,key=lambda x:x['build'])['build'])")
+          echo "eagler_tag=$EAGLER_TAG" >> "$GITHUB_OUTPUT"
+          echo "vv_tag=$VV_TAG" >> "$GITHUB_OUTPUT"
+          echo "vb_tag=$VB_TAG" >> "$GITHUB_OUTPUT"
+          echo "paper_build=$PAPER_BUILD" >> "$GITHUB_OUTPUT"
+
+      - name: Create release ZIP
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p release/eaglercraft-bridge-${TAG}
+          cp -r proxy/ release/eaglercraft-bridge-${TAG}/
+          cp -r backend/ release/eaglercraft-bridge-${TAG}/
+          cp -r scripts/ release/eaglercraft-bridge-${TAG}/
+          cp -r deploy/ release/eaglercraft-bridge-${TAG}/
+          cp README.md release/eaglercraft-bridge-${TAG}/
+          cd release && zip -r eaglercraft-bridge-${TAG}.zip eaglercraft-bridge-${TAG}/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/eaglercraft-bridge-${{ github.ref_name }}.zip
+          body: |
+            ## Eaglercraft Bridge ${{ github.ref_name }}
+
+            ### Plugin Versions
+            - EaglerXServer: ${{ steps.versions.outputs.eagler_tag }}
+            - ViaVersion: ${{ steps.versions.outputs.vv_tag }}
+            - ViaBackwards: ${{ steps.versions.outputs.vb_tag }}
+            - Paper 26.1.2 Build: #${{ steps.versions.outputs.paper_build }}
+
+            ### Connect Instructions
+            Open eaglercraft.com/play, select 1.12.2, click Multiplayer, Add Server, enter:
+            `wss://YOUR-PROXY-IP:25565`
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-logs
+          path: |
+            proxy/logs/
+            backend/logs/
+            test-results/

@@ -1,0 +1,64 @@
+# Tests that ViaVersion and ViaBackwards loaded correctly on the proxy.
+# Validates the protocol bridge between 1.12.2 and 26.1.2 is functional.
+
+name: "08 - ViaVersion Bridge"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  viaversion:
+    name: Test ViaVersion Bridge
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download all dependencies
+        run: bash scripts/download_all.sh
+
+      - name: Install test dependencies
+        run: pip install -r requirements.txt -q
+
+      - name: Start full stack
+        run: bash scripts/start_all.sh
+
+      - name: Run ViaVersion bridge test
+        run: |
+          PROXY_LOG_PATH="$(pwd)/proxy/logs/latest.log" \
+          pytest tests/test_06_viaversion_bridge.py -v \
+            --junitxml=test-results/viaversion.xml
+
+      - name: Stop all
+        if: always()
+        run: bash scripts/stop_all.sh || true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: viaversion-test-results
+          path: |
+            test-results/
+            proxy/logs/
+            backend/logs/
+
+      - name: Summary
+        if: always()
+        run: echo "=== ViaVersion bridge test complete ==="

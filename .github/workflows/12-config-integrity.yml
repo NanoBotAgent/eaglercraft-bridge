@@ -1,0 +1,106 @@
+# Verifies config file integrity after a full boot + shutdown cycle.
+# Ensures Paper doesn't overwrite critical settings and plugin configs are generated.
+
+name: "12 - Config Integrity"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  config-integrity:
+    name: Verify Config Integrity After Boot
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download all dependencies
+        run: bash scripts/download_all.sh
+
+      - name: Install PyYAML
+        run: pip install pyyaml -q
+
+      - name: Start full stack
+        run: bash scripts/start_all.sh
+
+      - name: Wait for stability
+        run: sleep 10
+
+      - name: Stop all gracefully
+        run: bash scripts/stop_all.sh
+
+      - name: Verify backend server.properties intact
+        run: |
+          FILE="backend/server.properties"
+          grep -q "online-mode=false" "$FILE" || { echo "[FAIL] Paper overwrote online-mode" >&2; exit 1; }
+          grep -q "server-port=25566" "$FILE" || { echo "[FAIL] Paper overwrote server-port" >&2; exit 1; }
+          echo "[PASS] server.properties intact"
+
+      - name: Verify backend spigot.yml intact
+        run: |
+          FILE="backend/spigot.yml"
+          grep -q "bungeecord: true" "$FILE" || { echo "[FAIL] Paper overwrote bungeecord setting" >&2; exit 1; }
+          echo "[PASS] spigot.yml intact"
+
+      - name: Check plugin config directories created
+        run: |
+          ERRORS=""
+          [ -d "proxy/plugins/EaglerXServer" ] || ERRORS="$ERRORS\n  Missing: proxy/plugins/EaglerXServer/"
+          [ -d "proxy/plugins/ViaVersion" ] || ERRORS="$ERRORS\n  Missing: proxy/plugins/ViaVersion/"
+          [ -d "proxy/plugins/ViaBackwards" ] || ERRORS="$ERRORS\n  Missing: proxy/plugins/ViaBackwards/"
+          if [ -n "$ERRORS" ]; then
+            echo "[FAIL] Plugin config directories:$ERRORS" >&2
+            exit 1
+          fi
+          echo "[PASS] All plugin config directories created"
+
+      - name: Validate generated plugin configs
+        run: |
+          python3 -c "
+          import yaml, glob, sys
+          errors = []
+          for f in glob.glob('proxy/plugins/**/*.yml', recursive=True):
+              try:
+                  with open(f) as fh:
+                      yaml.safe_load(fh)
+              except Exception as e:
+                  errors.append(f'{f}: {e}')
+          if errors:
+              for e in errors:
+                  print(f'[FAIL] {e}', file=sys.stderr)
+              sys.exit(1)
+          print('[PASS] All generated plugin configs are valid YAML')
+          "
+
+      - name: Upload all generated configs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: config-integrity-outputs
+          path: |
+            proxy/plugins/EaglerXServer/
+            proxy/plugins/ViaVersion/
+            proxy/plugins/ViaBackwards/
+            backend/server.properties
+            backend/spigot.yml
+            proxy/logs/
+            backend/logs/
+
+      - name: Summary
+        run: echo "=== PASS: Config integrity verified ==="
