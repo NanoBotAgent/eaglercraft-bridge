@@ -2,10 +2,10 @@
 Verifies EaglerXServer correctly handles Eaglercraft protocol V4 handshake.
 
 The V4 handshake flow (from EaglerXServer source):
-  1. Client sends CLIENT_VERSION (0x01) with protocol lists + brand + version
-  2. Server responds with SERVER_VERSION (0x02) or VERSION_MISMATCH (0x03)
-  3. Client sends REQUEST_LOGIN (0x04) with username + capabilities
-  4. Server responds with ALLOW_LOGIN (0x05) or DENY_LOGIN (0x06)
+1. Client sends CLIENT_VERSION (0x01) with protocol lists + brand + version
+2. Server responds with SERVER_VERSION (0x02) or VERSION_MISMATCH (0x03)
+3. Client sends REQUEST_LOGIN (0x04) with username + capabilities
+4. Server responds with ALLOW_LOGIN (0x05) or DENY_LOGIN (0x06)
 """
 
 import asyncio
@@ -15,12 +15,19 @@ import websockets
 
 from conftest import build_eagler_v4_client_version_packet
 
+EAGLERCRAFT_ORIGIN = "https://eaglercraft.com"
+
 
 @pytest.mark.asyncio
 async def test_eaglercraft_v4_handshake(ws_url, eagler_handshake_packet):
     """Eaglercraft V4 handshake packet should receive a valid server response."""
     try:
-        async with websockets.connect(ws_url, close_timeout=5) as ws:
+        async with websockets.connect(
+            ws_url,
+            origin=EAGLERCRAFT_ORIGIN,
+            user_agent_header="EaglercraftX/1.12.2",
+            close_timeout=5,
+        ) as ws:
             # Send CLIENT_VERSION packet
             await ws.send(eagler_handshake_packet)
 
@@ -53,3 +60,6 @@ async def test_eaglercraft_v4_handshake(ws_url, eagler_handshake_packet):
         pytest.fail(f"WebSocket connection refused at {ws_url}")
     except websockets.exceptions.InvalidStatusCode as e:
         pytest.fail(f"WebSocket upgrade failed: {e}")
+    except EOFError:
+        pytest.fail("WebSocket connection closed immediately — EaglerXServer rejected upgrade. "
+                     "Check listeners.yml origin_whitelist.")

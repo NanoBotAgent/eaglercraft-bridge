@@ -27,7 +27,7 @@ async def test_stress_sequential_connections(ws_url):
         error = None
 
         try:
-            async with websockets.connect(ws_url, close_timeout=5) as ws:
+            async with websockets.connect(ws_url, origin="https://eaglercraft.com", user_agent_header="EaglercraftX/1.12.2", close_timeout=5) as ws:
                 # Send V4 handshake
                 packet = build_eagler_v4_client_version_packet()
                 await ws.send(packet)
@@ -68,7 +68,7 @@ async def test_stress_sequential_connections(ws_url):
 
     # Final check: one more connection after all 100
     try:
-        async with websockets.connect(ws_url, close_timeout=5) as ws:
+        async with websockets.connect(ws_url, origin="https://eaglercraft.com", user_agent_header="EaglercraftX/1.12.2", close_timeout=5) as ws:
             packet = build_eagler_v4_client_version_packet()
             await ws.send(packet)
             response = await asyncio.wait_for(ws.recv(), timeout=5)

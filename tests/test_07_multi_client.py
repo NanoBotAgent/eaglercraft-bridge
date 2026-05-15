@@ -14,7 +14,7 @@ async def test_multi_client_connections(ws_url):
     async def connect_and_hold(idx):
         """Connect, hold open for 3 seconds, then close cleanly."""
         try:
-            async with websockets.connect(ws_url, close_timeout=5) as ws:
+            async with websockets.connect(ws_url, origin="https://eaglercraft.com", user_agent_header="EaglercraftX/1.12.2", close_timeout=5) as ws:
                 assert ws.open, f"Client {idx}: connection not open after connect"
                 await asyncio.sleep(3)
                 assert ws.open, f"Client {idx}: connection closed during hold period"

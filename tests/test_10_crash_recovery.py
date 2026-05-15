@@ -34,7 +34,7 @@ async def test_crash_recovery(ws_url):
         # Send garbage
         garbage = os.urandom(128)
         try:
-            async with websockets.connect(ws_url, close_timeout=5) as ws:
+            async with websockets.connect(ws_url, origin="https://eaglercraft.com", user_agent_header="EaglercraftX/1.12.2", close_timeout=5) as ws:
                 await ws.send(garbage)
                 try:
                     await asyncio.wait_for(ws.recv(), timeout=3)
@@ -55,7 +55,7 @@ async def test_crash_recovery(ws_url):
 
         # Verify valid connection still works
         try:
-            async with websockets.connect(ws_url, close_timeout=5) as ws:
+            async with websockets.connect(ws_url, origin="https://eaglercraft.com", user_agent_header="EaglercraftX/1.12.2", close_timeout=5) as ws:
                 packet = build_eagler_v4_client_version_packet()
                 await ws.send(packet)
                 try:

@@ -1,5 +1,7 @@
 listeners:
-- inject_address: "0.0.0.0:25565"
-  eagler_players_cap: -1
-  allow_eagler_players: true
-  allow_vanilla_players: true
+  - inject_address: "0.0.0.0:25565"
+    eagler_players_cap: -1
+    allow_eagler_players: true
+    allow_vanilla_players: true
+    origin_whitelist:
+      allow_all_origins: true

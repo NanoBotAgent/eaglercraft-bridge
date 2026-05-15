@@ -21,7 +21,7 @@ async def test_invalid_packets_graceful_disconnect(ws_url):
     for i, payload in enumerate(garbage_payloads):
         # Send garbage
         try:
-            async with websockets.connect(ws_url, close_timeout=5) as ws:
+            async with websockets.connect(ws_url, origin="https://eaglercraft.com", user_agent_header="EaglercraftX/1.12.2", close_timeout=5) as ws:
                 await ws.send(payload)
                 # Server should close the connection or we close it
                 try:
@@ -35,7 +35,7 @@ async def test_invalid_packets_graceful_disconnect(ws_url):
 
         # After each garbage send, verify a fresh valid connection works
         try:
-            async with websockets.connect(ws_url, close_timeout=5) as ws:
+            async with websockets.connect(ws_url, origin="https://eaglercraft.com", user_agent_header="EaglercraftX/1.12.2", close_timeout=5) as ws:
                 packet = build_eagler_v4_client_version_packet()
                 await ws.send(packet)
                 try:
