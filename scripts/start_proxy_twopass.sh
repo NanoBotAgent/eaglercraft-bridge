@@ -19,7 +19,7 @@ echo "[INFO] Pass 1: Starting proxy to generate EaglerXServer configs..."
 java -Xms256M -Xmx512M \
   -XX:+UseG1GC \
   -jar BungeeCord.jar \
-  > logs/latest.log 2>&1 &
+  > logs/pass1.log 2>&1 &
 
 PID=$!
 echo "$PID" > server.pid
@@ -37,7 +37,7 @@ while true; do
     exit 1
   fi
   # Check if proxy is listening AND EaglerXServer generated its configs
-  if [ -f logs/latest.log ] && grep -q "Listening on" logs/latest.log 2>/dev/null; then
+  if [ -f logs/pass1.log ] && grep -q "Listening on" logs/pass1.log 2>/dev/null; then
     if [ -f plugins/EaglercraftXServer/listeners.yml ]; then
       echo "[INFO] Proxy booted and configs generated after ${ELAPSED}s"
       break
@@ -49,23 +49,39 @@ done
 # Give it a moment more to finish writing configs
 sleep 3
 
-# Stop the proxy
+# Stop the proxy gracefully
 echo "[INFO] Stopping proxy (pass 1)..."
 kill "$PID" 2>/dev/null || true
-sleep 5
-kill -9 "$PID" 2>/dev/null || true
+
+# Wait for the process to actually exit
+WAIT_TIMEOUT=30
+WAIT_START=$(date +%s)
+while kill -0 "$PID" 2>/dev/null; do
+  ELAPSED=$(( $(date +%s) - WAIT_START ))
+  if [ "$ELAPSED" -ge "$WAIT_TIMEOUT" ]; then
+    echo "[WARN] Proxy did not exit gracefully, force killing..."
+    kill -9 "$PID" 2>/dev/null || true
+    break
+  fi
+  sleep 1
+done
+
+# Extra sleep to ensure file handles are released
+sleep 2
+
 rm -f server.pid
+
+echo "[INFO] Pass 1 proxy stopped"
 
 # --- Patch configs ---
 echo "[INFO] Patching EaglerXServer configs..."
-export LISTENERS_FILE="${PROXY_DIR}/plugins/EaglercraftXServer/listeners.yml"
 bash "${SCRIPT_DIR}/patch_eaglerxserver_config.sh"
 
 # --- PASS 2: Start for real ---
 echo "[INFO] Pass 2: Starting proxy with patched configs..."
 
-# Clear the old log so wait_for_proxy detects the fresh boot
-> logs/latest.log
+# Clean up any old log files
+rm -f logs/latest.log
 
 java -Xms256M -Xmx512M \
   -XX:+UseG1GC \
@@ -74,5 +90,5 @@ java -Xms256M -Xmx512M \
 
 PID=$!
 echo "$PID" > server.pid
-echo "[INFO] BungeeCord proxy started (PID: ${PID})"
+echo "[INFO] BungeeCord proxy started (PID: ${PID}) (pass 2)"
 echo "[INFO] === Two-pass startup complete ==="
