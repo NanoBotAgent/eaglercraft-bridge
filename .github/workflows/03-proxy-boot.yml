@@ -23,6 +23,10 @@ jobs:
           distribution: temurin
           java-version: "25"
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Make scripts executable
         run: chmod +x scripts/*.sh
 
@@ -32,9 +36,10 @@ jobs:
           bash scripts/download_eaglerxserver.sh
           bash scripts/download_viaversion.sh
           bash scripts/download_viabackwards.sh
+          bash scripts/download_viabungee.sh
 
       - name: Start proxy
-        run: bash scripts/start_proxy.sh
+        run: bash scripts/start_proxy_twopass.sh
 
       - name: Wait for proxy to boot
         run: |
@@ -52,6 +57,13 @@ jobs:
           ! grep -q "UnsupportedClassVersionError" "$LOG" || { echo "[FAIL] Java version error" >&2; exit 1; }
           echo "[PASS] EaglerXServer loaded successfully"
 
+      - name: Check EaglerXServer injected listeners
+        run: |
+          LOG="proxy/logs/latest.log"
+          grep -q "inject" "$LOG" 2>/dev/null || {
+            echo "[WARN] No injection log found — EaglerXServer may not have injected into BungeeCord pipeline"
+          }
+
       - name: Stop proxy
         if: always()
         run: |
@@ -66,7 +78,9 @@ jobs:
         if: always()
         with:
           name: proxy-boot-logs
-          path: proxy/logs/
+          path: |
+            proxy/logs/
+            proxy/plugins/EaglercraftXServer/
 
       - name: Summary
         run: 'echo "=== PASS: Proxy booted with EaglerXServer ==="'

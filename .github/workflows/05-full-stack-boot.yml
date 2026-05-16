@@ -43,7 +43,7 @@ jobs:
         run: bash scripts/wait_for_backend.sh
 
       - name: Start proxy
-        run: bash scripts/start_proxy.sh
+        run: bash scripts/start_proxy_twopass.sh
 
       - name: Wait for proxy
         run: bash scripts/wait_for_proxy.sh

@@ -19,6 +19,9 @@ bash "${SCRIPT_DIR}/download_viaversion.sh"
 echo "[INFO] --- Downloading ViaBackwards ---"
 bash "${SCRIPT_DIR}/download_viabackwards.sh"
 
+echo "[INFO] --- Downloading ViaBungee ---"
+bash "${SCRIPT_DIR}/download_viabungee.sh"
+
 echo "[INFO] --- Downloading Paper 26.1.2 ---"
 bash "${SCRIPT_DIR}/download_paper.sh"
 
