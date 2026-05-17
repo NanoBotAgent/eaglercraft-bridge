@@ -24,13 +24,15 @@ async def test_websocket_upgrade(ws_url):
         ) as ws:
             # Connection established, wait briefly to ensure it stays open
             await asyncio.sleep(1)
-            assert ws.open, "WebSocket closed unexpectedly during wait period"
+            # In websockets 12+, use ws.state instead of removed ws.open property
+            assert ws.state is websockets.protocol.State.OPEN, \
+                "WebSocket closed unexpectedly during wait period"
     except ConnectionRefusedError:
         pytest.fail(f"WebSocket connection refused at {ws_url}")
     except websockets.exceptions.InvalidStatusCode as e:
         pytest.fail(f"WebSocket upgrade failed with HTTP status: {e}")
     except EOFError:
         pytest.fail(f"WebSocket connection closed immediately (EaglerXServer rejected upgrade). "
-                     f"Check origin_whitelist in listeners.yml — allow_all_origins may be needed.")
+                    f"Check origin_whitelist in listeners.yml — allow_all_origins may be needed.")
     except Exception as e:
         pytest.fail(f"Unexpected WebSocket error: {type(e).__name__}: {e}")
