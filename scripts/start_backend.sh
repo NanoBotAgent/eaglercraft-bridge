@@ -27,4 +27,5 @@ java -Xms512M -Xmx2G \
 
 PID=$!
 echo "$PID" > server.pid
+disown $PID
 echo "[INFO] Paper 26.1.2 backend started (PID: ${PID})"

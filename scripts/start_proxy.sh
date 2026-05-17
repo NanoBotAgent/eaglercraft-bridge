@@ -19,4 +19,5 @@ java -Xms256M -Xmx512M \
 
 PID=$!
 echo "$PID" > server.pid
+disown $PID
 echo "[INFO] BungeeCord proxy started (PID: ${PID})"

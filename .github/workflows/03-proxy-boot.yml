@@ -41,13 +41,16 @@ jobs:
       - name: Start proxy
         run: bash scripts/start_proxy_twopass.sh
 
-      - name: Wait for proxy to boot
+      - name: Wait for proxy to boot and plugins to load
         run: |
-          timeout 60 bash -c 'while ! grep -q "Listening on" proxy/logs/latest.log 2>/dev/null; do sleep 2; done' || {
-            echo "[FAIL] Proxy did not boot within 60 seconds" >&2
+          timeout 90 bash -c 'while ! grep -q "Listening on" proxy/logs/latest.log 2>/dev/null; do sleep 2; done' || {
+            echo "[FAIL] Proxy did not boot within 90 seconds" >&2
             exit 1
           }
           echo "[PASS] Proxy booted successfully"
+          # Wait for stdout buffer to flush (Java buffers stdout when redirecting to file)
+          sleep 5
+          sync
 
       - name: Check EaglerXServer loaded
         run: |

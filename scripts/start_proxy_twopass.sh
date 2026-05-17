@@ -23,6 +23,7 @@ java -Xms256M -Xmx512M \
 
 PID=$!
 echo "$PID" > server.pid
+disown $PID
 echo "[INFO] BungeeCord proxy started (PID: ${PID})"
 
 # Wait for proxy to fully boot and EaglerXServer to generate configs
@@ -66,12 +67,22 @@ while kill -0 "$PID" 2>/dev/null; do
   sleep 1
 done
 
-# Extra sleep to ensure file handles are released
-sleep 2
+# Extra sleep to ensure file handles and ports are released
+sleep 5
 
 rm -f server.pid
 
 echo "[INFO] Pass 1 proxy stopped"
+
+# Verify port 25565 is free
+for i in $(seq 1 10); do
+  if ! ss -tlnp 2>/dev/null | grep -q ':25565 ' && ! netstat -tlnp 2>/dev/null | grep -q ':25565 '; then
+    echo "[INFO] Port 25565 is free"
+    break
+  fi
+  echo "[WARN] Port 25565 still in use, waiting... (attempt $i/10)"
+  sleep 2
+done
 
 # --- Patch configs ---
 echo "[INFO] Patching EaglerXServer configs..."
@@ -90,5 +101,6 @@ java -Xms256M -Xmx512M \
 
 PID=$!
 echo "$PID" > server.pid
+disown $PID
 echo "[INFO] BungeeCord proxy started (PID: ${PID}) (pass 2)"
 echo "[INFO] === Two-pass startup complete ==="
