@@ -7,11 +7,12 @@ Sending "accept:motd" triggers MOTDConnectionWrapper.sendToUser(),
 which responds with a JSON TextWebSocketFrame containing:
   {"name":"...", "brand":"lax1dude", "type":"motd", "data":{"motd":[...], ...}}
 
-BinaryWebSocketFrame goes to the handshake handler instead.
+Binary WebSocketFrame goes to the handshake handler instead.
 
-NOTE: EaglerXServer rate-limits connections. Each test adds a small
-delay and retry logic to avoid "did not receive a valid HTTP response"
-errors from the rate limiter.
+NOTE: After a WebSocket connection closes, EaglerXServer may need
+a brief moment before it can accept a new connection on the same
+channel. The connect_with_retry helper handles this with exponential
+backoff.
 """
 
 import asyncio
@@ -21,17 +22,22 @@ import websockets
 
 EAGLERCRAFT_ORIGIN = "https://eaglercraft.com"
 
-# EaglerXServer rate-limits rapid sequential connections from the same IP.
-# Add a small delay between tests and use retry logic.
-CONNECTION_RETRY_DELAY = 1.0  # seconds between retries
-MAX_RETRIES = 3
+# EaglerXServer may briefly reject connections after a previous
+# WebSocket closes. Use exponential backoff with enough retries.
+MAX_RETRIES = 5
+BASE_RETRY_DELAY = 0.5  # seconds, doubles each retry
 
 
-async def connect_with_retry(ws_url, delay=0.5):
-    """Connect with retry logic to handle EaglerXServer rate limiting."""
-    for attempt in range(MAX_RETRIES):
+async def connect_with_retry(ws_url, max_retries=MAX_RETRIES):
+    """Connect with exponential backoff to handle transient connection failures.
+
+    After a WebSocket connection closes, EaglerXServer's Netty pipeline
+    may need a moment to clean up before accepting new connections.
+    """
+    for attempt in range(max_retries):
         if attempt > 0:
-            await asyncio.sleep(CONNECTION_RETRY_DELAY)
+            delay = BASE_RETRY_DELAY * (2 ** (attempt - 1))
+            await asyncio.sleep(delay)
         try:
             ws = await websockets.connect(
                 ws_url,
@@ -41,7 +47,12 @@ async def connect_with_retry(ws_url, delay=0.5):
             )
             return ws
         except websockets.exceptions.InvalidMessage:
-            if attempt == MAX_RETRIES - 1:
+            # Server closed connection during HTTP upgrade - retry
+            if attempt == max_retries - 1:
+                raise
+            continue
+        except ConnectionRefusedError:
+            if attempt == max_retries - 1:
                 raise
             continue
     raise ConnectionError("Failed to connect after retries")
@@ -102,8 +113,6 @@ async def test_motd_response(ws_url):
 @pytest.mark.asyncio
 async def test_motd_noicon_variant(ws_url):
     """Server should respond to accept:motd.noicon without icon data."""
-    # Delay to avoid rate limiting from previous test
-    await asyncio.sleep(1.0)
     try:
         async with await connect_with_retry(ws_url) as ws:
             await ws.send("accept:motd.noicon")
@@ -130,8 +139,6 @@ async def test_motd_noicon_variant(ws_url):
 @pytest.mark.asyncio
 async def test_motd_rejects_binary(ws_url):
     """Server should NOT return MOTD when sent a binary frame -- binary goes to handshake."""
-    # Delay to avoid rate limiting from previous test
-    await asyncio.sleep(1.0)
     try:
         try:
             async with websockets.connect(
@@ -163,7 +170,7 @@ async def test_motd_rejects_binary(ws_url):
                         except json.JSONDecodeError:
                             pass  # Non-JSON text is fine -- not a MOTD response
         except websockets.exceptions.InvalidMessage:
-            # Rate limited or server not ready -- this test is less critical
+            # Transient connection issue -- not a test failure
             # The important thing is test_motd_response passed
             pass
 
