@@ -2,10 +2,12 @@
 set -euo pipefail
 
 # Downloads the latest ViaBackwards.jar from GitHub releases
-# Placed in proxy/plugins/ for BungeeCord to load
+# Placed in proxy/plugins/ViaVersion/ — ViaBungee loads ViaVersion addons
+# as libraries from this subfolder, NOT as BungeeCord plugins directly.
+# Putting it in proxy/plugins/ causes NoClassDefFoundError: JavaPlugin.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEST_DIR="${SCRIPT_DIR}/../proxy/plugins"
+DEST_DIR="${SCRIPT_DIR}/../proxy/plugins/ViaVersion"
 
 mkdir -p "$DEST_DIR"
 

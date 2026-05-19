@@ -54,12 +54,30 @@ jobs:
           kill -0 "$(cat proxy/server.pid)" 2>/dev/null || { echo "[FAIL] Proxy crashed" >&2; exit 1; }
           echo "[PASS] Both servers running"
 
-      - name: Check proxy connected to backend
-        run: |
-          LOG="proxy/logs/latest.log"
-          grep -q "backend" "$LOG" 2>/dev/null || {
-            echo "[WARN] Backend server name not found in proxy log (may take longer to register)"
-          }
+  - name: Check proxy connected to backend
+    run: |
+      LOG="proxy/logs/latest.log"
+      if [ ! -f "$LOG" ]; then
+        echo "[FAIL] Proxy log not found at $LOG" >&2
+        exit 1
+      fi
+      if ! grep -q "backend" "$LOG" 2>/dev/null; then
+        echo "[FAIL] Backend server name not found in proxy log" >&2
+        echo "--- Proxy log tail ---"
+        tail -20 "$LOG"
+        exit 1
+      fi
+      echo "[PASS] Proxy recognizes backend server"
+
+  - name: Check no plugin load errors
+    run: |
+      LOG="proxy/logs/latest.log"
+      if grep -q "Error loading plugin" "$LOG" 2>/dev/null; then
+        echo "[FAIL] Plugin load errors found:" >&2
+        grep "Error loading plugin" "$LOG" >&2
+        exit 1
+      fi
+      echo "[PASS] No plugin load errors"
 
       - name: Stop all
         if: always()
@@ -74,5 +92,5 @@ jobs:
             proxy/logs/
             backend/logs/
 
-      - name: Summary
-        run: 'echo "=== PASS: Full stack booted successfully ==="'
+  - name: Summary
+    run: 'echo "=== PASS: Full stack booted, proxy connected to backend, no plugin errors ==="'
