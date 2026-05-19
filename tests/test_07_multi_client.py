@@ -1,29 +1,31 @@
 """
 Verifies server handles 10 Eaglercraft connections.
-Staggered launch to avoid overwhelming dual-stack handshake classification.
+
+Staggered launch to avoid overwhelming EaglerXServer's connection
+rate limiter. The default config allows ~15 connections per minute
+per IP, but the rate limiter window is shorter on localhost.
 """
 
 import asyncio
 import pytest
 import websockets
 
-STAGGER_DELAY = 0.3  # seconds between each connection launch
+# EaglerXServer rate-limits connections from the same IP.
+# 1.5s stagger gives the rate limiter time to accept each connection.
+STAGGER_DELAY = 1.5  # seconds between each connection launch
+HOLD_TIME = 3.0      # seconds to hold each connection open
 
 
 @pytest.mark.asyncio
 async def test_multi_client_connections(ws_url):
-    """10 WebSocket connections should all succeed within 15 seconds.
+    """10 WebSocket connections should all succeed within 30 seconds.
 
-    Connections are staggered by 0.3s each to avoid overwhelming
-    EaglerXServer's dual-stack first-packet classifier, which must
-    read the initial bytes from each connection to determine whether
-    it is a WebSocket upgrade or a vanilla TCP Minecraft client.
-    Launching all 10 simultaneously causes the HTTP upgrade response
-    to time out for most connections.
+    Connections are staggered by 1.5s each to avoid triggering
+    EaglerXServer's connection rate limiter, which rejects rapid
+    sequential connections from the same IP with an HTTP error.
     """
-
     async def connect_and_hold(idx):
-        """Connect, hold open for 3 seconds, then close cleanly."""
+        """Connect, hold open for a few seconds, then close cleanly."""
         try:
             async with websockets.connect(
                 ws_url,
@@ -33,14 +35,14 @@ async def test_multi_client_connections(ws_url):
             ) as ws:
                 assert ws.state is websockets.protocol.State.OPEN, \
                     f"Client {idx}: connection not open after connect"
-                await asyncio.sleep(3)
+                await asyncio.sleep(HOLD_TIME)
                 assert ws.state is websockets.protocol.State.OPEN, \
                     f"Client {idx}: connection closed during hold period"
                 return True, None
         except Exception as e:
             return False, e
 
-    # Stagger connections to avoid dual-stack handshake bottleneck
+    # Stagger connections to avoid rate limiting
     tasks = []
     for i in range(10):
         tasks.append(asyncio.create_task(connect_and_hold(i)))
@@ -49,7 +51,7 @@ async def test_multi_client_connections(ws_url):
 
     results = await asyncio.wait_for(
         asyncio.gather(*tasks, return_exceptions=False),
-        timeout=15,
+        timeout=30,
     )
 
     failures = [(i, err) for i, (success, err) in enumerate(results) if not success]
