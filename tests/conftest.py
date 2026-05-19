@@ -2,11 +2,26 @@
 Pytest fixtures for Eaglercraft Bridge test suite.
 
 Provides common connection parameters and the Eaglercraft V4 handshake
-packet builder based on the EaglerXServer protocol specification:
-  - First packet: PROTOCOL_CLIENT_VERSION (0x01)
-  - Format for V2+: [0x01, 0x00, 0x02] + eagler_protocol_list + minecraft_protocol_list
-    + brand_len(1) + brand + version_len(1) + version + auth_bool(1) + auth_username_len(1) + auth_username
-  - Eaglercraft 1.12.2 uses MC protocol 340
+packet builder based on the EaglerXServer protocol specification.
+
+Wire format from WebSocketEaglerInitialHandler.decode():
+  Byte 0: 0x01 (PROTOCOL_CLIENT_VERSION magic)
+  Byte 1: 0x02 (means EaglercraftX 1.8 v2/v3/v4/v5 client)
+  Then: eagler_protocol_count (unsigned short)
+  For each eagler protocol: unsigned short (2=V2, 3=V3, 4=V4, 5=V5)
+  Then: minecraft_protocol_count (unsigned short)
+  For each minecraft protocol: unsigned short (340=1.12.2, 47=1.8)
+  Then: brand_len (unsigned byte) + brand (ASCII)
+  Then: version_len (unsigned byte) + version (ASCII)
+  Then: auth (boolean, 1 byte)
+  Then: auth_username_len (unsigned byte) + auth_username (bytes)
+
+Key: Byte 1 MUST be 0x02 (not the protocol count). The initial handler
+reads bytes 0 and 1 individually to classify the packet type:
+  b1=0x01, b2=0x02 -> EaglercraftX v2+ (handleEaglerConnection)
+  b1=0x01, b2=0x01 -> EaglercraftX v1 legacy
+  b1=0x02           -> EaglerXRewind
+  anything else     -> ctx.close()
 """
 
 import pytest
@@ -51,16 +66,16 @@ def build_eagler_v4_client_version_packet(
     Build an Eaglercraft V4 CLIENT_VERSION (0x01) packet.
 
     Wire format (from WebSocketEaglerInitialHandler.decode):
-      Byte 0: 0x01 (PROTOCOL_CLIENT_VERSION)
-      Byte 1: 0x00 (first byte of eagler protocol count, unsigned short)
-      Byte 2: eagler_protocol_count (second byte, e.g. 0x02 for 2 protocols)
-      For each eagler protocol: unsigned short (2 = V2, 3 = V3, 4 = V4, 5 = V5)
-      Then: minecraft_protocol_count (unsigned short)
-      For each minecraft protocol: unsigned short (340 = 1.12.2, 47 = 1.8)
-      Then: brand_len (unsigned byte) + brand (ASCII)
-      Then: version_len (unsigned byte) + version (ASCII)
-      Then: auth (boolean, 1 byte)
-      Then: auth_username_len (unsigned byte) + auth_username (bytes)
+    Byte 0: 0x01 (PROTOCOL_CLIENT_VERSION)
+    Byte 1: 0x02 (EaglercraftX 1.8 v2/v3/v4/v5 indicator)
+    Then: eagler_protocol_count (unsigned short)
+    For each eagler protocol: unsigned short (4=V4)
+    Then: minecraft_protocol_count (unsigned short)
+    For each minecraft protocol: unsigned short (340=1.12.2)
+    Then: brand_len (unsigned byte) + brand (ASCII)
+    Then: version_len (unsigned byte) + version (ASCII)
+    Then: auth (boolean, 1 byte)
+    Then: auth_username_len (unsigned byte) + auth_username (bytes)
     """
     if eagler_protocols is None:
         eagler_protocols = [4]  # V4
@@ -70,6 +85,10 @@ def build_eagler_v4_client_version_packet(
     buf = bytearray()
     # Packet ID
     buf.append(0x01)
+    # EaglercraftX 1.8 v2+ indicator (byte 1)
+    # This is NOT the protocol count - it is a fixed magic byte
+    # that tells the initial handler to use handleEaglerConnection
+    buf.append(0x02)
     # Eagler protocol count (unsigned short)
     buf.extend(struct.pack(">H", len(eagler_protocols)))
     for p in eagler_protocols:
@@ -106,12 +125,12 @@ def build_eagler_v4_request_login_packet(
     Build an Eaglercraft V4 CLIENT_REQUEST_LOGIN (0x04) packet.
 
     Wire format (from HandshakerV4.handleInboundRequestLogin):
-      Byte 0: 0x04 (PROTOCOL_CLIENT_REQUEST_LOGIN)
-      username_len (unsigned byte) + username (ASCII)
-      requested_server_len (unsigned byte) + requested_server (ASCII)
-      auth_password_len (unsigned byte) + auth_password (bytes)
-      enable_cookie (boolean, 1 byte)
-      cookie_len (unsigned byte) + cookie_data (bytes, only if enable_cookie)
+    Byte 0: 0x04 (PROTOCOL_CLIENT_REQUEST_LOGIN)
+    username_len (unsigned byte) + username (ASCII)
+    requested_server_len (unsigned byte) + requested_server (ASCII)
+    auth_password_len (unsigned byte) + auth_password (bytes)
+    enable_cookie (boolean, 1 byte)
+    cookie_len (unsigned byte) + cookie_data (bytes, only if enable_cookie)
     """
     buf = bytearray()
     buf.append(0x04)
