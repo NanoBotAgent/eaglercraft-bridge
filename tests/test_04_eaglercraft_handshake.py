@@ -7,8 +7,9 @@ The V4 handshake flow (from EaglerXServer source):
 3. Client sends REQUEST_LOGIN (0x04) with username + capabilities
 4. Server responds with ALLOW_LOGIN (0x05) or DENY_LOGIN (0x06)
 
-NOTE: EaglerXServer rate-limits rapid connections. The test uses
-retry logic to handle occasional rate-limit rejections.
+NOTE: After a WebSocket connection closes, EaglerXServer may need
+a brief moment before accepting new connections. The test uses
+exponential backoff retry logic to handle transient failures.
 """
 
 import asyncio
@@ -19,15 +20,16 @@ import websockets
 from conftest import build_eagler_v4_client_version_packet
 
 EAGLERCRAFT_ORIGIN = "https://eaglercraft.com"
-MAX_RETRIES = 3
-RETRY_DELAY = 1.0
+MAX_RETRIES = 5
+BASE_RETRY_DELAY = 0.5  # seconds, doubles each retry
 
 
 async def connect_with_retry(ws_url):
-    """Connect with retry logic to handle EaglerXServer rate limiting."""
+    """Connect with exponential backoff to handle transient connection failures."""
     for attempt in range(MAX_RETRIES):
         if attempt > 0:
-            await asyncio.sleep(RETRY_DELAY)
+            delay = BASE_RETRY_DELAY * (2 ** (attempt - 1))
+            await asyncio.sleep(delay)
         try:
             ws = await websockets.connect(
                 ws_url,
@@ -37,6 +39,10 @@ async def connect_with_retry(ws_url):
             )
             return ws
         except websockets.exceptions.InvalidMessage:
+            if attempt == MAX_RETRIES - 1:
+                raise
+            continue
+        except ConnectionRefusedError:
             if attempt == MAX_RETRIES - 1:
                 raise
             continue
