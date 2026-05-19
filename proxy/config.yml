@@ -23,3 +23,5 @@ groups: {}
 permissions: {}
 online_mode: false
 ip_forward: true
+connection_throttle: 0
+connection_throttle_limit: 0
