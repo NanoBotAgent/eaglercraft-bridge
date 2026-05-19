@@ -31,11 +31,13 @@ echo ""
 sed -i '/^[[:space:]]*#/!s|^\([[:space:]]*inject_address:[[:space:]]*\).*|\10.0.0.0:25565|' "$LISTENERS_FILE"
 
 # Disable all rate limiters for CI testing using Python/YAML.
-# Only touches rate limiter "enable" flags, not other boolean settings.
-python3 << 'PYTHON'
+# Pass the listeners file path as a command-line argument (not via heredoc
+# variable expansion which breaks with single-quoted heredoc delimiters).
+python3 - "$LISTENERS_FILE" << 'PYTHON'
+import sys
 import yaml
 
-path = "${LISTENERS_FILE}"
+path = sys.argv[1]
 with open(path, "r") as f:
     config = yaml.safe_load(f)
 
