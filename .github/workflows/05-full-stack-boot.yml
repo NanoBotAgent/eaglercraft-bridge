@@ -61,13 +61,20 @@ jobs:
             echo "[FAIL] Proxy log not found at $LOG" >&2
             exit 1
           fi
-          if ! grep -q "backend" "$LOG" 2>/dev/null; then
-            echo "[FAIL] Backend server name not found in proxy log" >&2
+          # BungeeCord does not always log the server name unless a player connects.
+          # Check that EaglerXServer listener injection succeeded instead.
+          if ! grep -q "Listener.*injected" "$LOG" 2>/dev/null; then
+            echo "[FAIL] EaglerXServer listener injection not found in proxy log" >&2
             echo "--- Proxy log tail ---"
             tail -20 "$LOG"
             exit 1
           fi
-          echo "[PASS] Proxy recognizes backend server"
+          # Also verify EaglerXServer is listening
+          if ! grep -q "Listening on" "$LOG" 2>/dev/null; then
+            echo "[FAIL] EaglerXServer not listening" >&2
+            exit 1
+          fi
+          echo "[PASS] Proxy booted with EaglerXServer listener injected"
 
       - name: Check no plugin load errors
         run: |
