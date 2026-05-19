@@ -9,7 +9,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: "0 0 * * 0"  # Weekly on Sunday
+    - cron: "0 0 * * 0" # Weekly on Sunday
 
 jobs:
   download-verify:
@@ -41,16 +41,16 @@ jobs:
 
       - name: Verify ViaVersion jar
         run: |
-          FILE=$(ls proxy/plugins/ViaVersion-*.jar 2>/dev/null | head -1)
-          [ -n "$FILE" ] || { echo "[FAIL] ViaVersion jar not found" >&2; exit 1; }
+          FILE=$(ls proxy/plugins/ViaVersion/ViaVersion-*.jar 2>/dev/null | head -1)
+          [ -n "$FILE" ] || { echo "[FAIL] ViaVersion jar not found in proxy/plugins/ViaVersion/" >&2; exit 1; }
           SIZE=$(stat -c%s "$FILE")
           [ "$SIZE" -gt 1048576 ] || { echo "[FAIL] ${FILE} is only ${SIZE} bytes" >&2; exit 1; }
           echo "[PASS] ViaVersion: ${SIZE} bytes"
 
       - name: Verify ViaBackwards jar
         run: |
-          FILE=$(ls proxy/plugins/ViaBackwards-*.jar 2>/dev/null | head -1)
-          [ -n "$FILE" ] || { echo "[FAIL] ViaBackwards jar not found" >&2; exit 1; }
+          FILE=$(ls proxy/plugins/ViaVersion/ViaBackwards-*.jar 2>/dev/null | head -1)
+          [ -n "$FILE" ] || { echo "[FAIL] ViaBackwards jar not found in proxy/plugins/ViaVersion/" >&2; exit 1; }
           SIZE=$(stat -c%s "$FILE")
           [ "$SIZE" -gt 1048576 ] || { echo "[FAIL] ${FILE} is only ${SIZE} bytes" >&2; exit 1; }
           echo "[PASS] ViaBackwards: ${SIZE} bytes"
@@ -79,6 +79,7 @@ jobs:
           path: |
             proxy/BungeeCord.jar
             proxy/plugins/*.jar
+            proxy/plugins/ViaVersion/*.jar
             backend/paper-26.1.2.jar
 
       - name: Summary

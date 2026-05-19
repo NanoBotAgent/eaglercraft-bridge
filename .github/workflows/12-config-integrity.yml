@@ -65,23 +65,22 @@ jobs:
           for jar in \
             proxy/plugins/EaglerXServer.jar \
             proxy/plugins/ViaBungee-*.jar \
-            proxy/plugins/ViaVersion-*.jar \
-            proxy/plugins/ViaBackwards-*.jar; do
+            proxy/plugins/ViaVersion/ViaVersion-*.jar \
+            proxy/plugins/ViaVersion/ViaBackwards-*.jar; do
             if ! ls $jar 2>/dev/null | grep -q .; then
               ERRORS="$ERRORS\n Missing JAR: $jar"
             fi
           done
 
           # Check config directories (created by plugins at runtime)
-          # EaglercraftXServer creates proxy/plugins/EaglercraftXServer/ (note the full name)
+          # EaglercraftXServer creates proxy/plugins/EaglercraftXServer/
           [ -d "proxy/plugins/EaglercraftXServer" ] || ERRORS="$ERRORS\n Missing: proxy/plugins/EaglercraftXServer/"
 
-          # ViaBungee loads ViaVersion — may create ViaVersion/ config dir if loaded successfully
-          # This is optional since ViaBungee might not create a separate dir
+          # ViaVersion JARs live in proxy/plugins/ViaVersion/ (loaded by ViaBungee as libraries)
           if [ -d "proxy/plugins/ViaVersion" ]; then
-            echo "[INFO] ViaVersion config directory exists"
+            echo "[INFO] ViaVersion directory exists (contains JARs for ViaBungee)"
           else
-            echo "[INFO] ViaVersion config directory not found (may be normal if ViaBungee inlines config)"
+            ERRORS="$ERRORS\n Missing: proxy/plugins/ViaVersion/"
           fi
 
           if [ -n "$ERRORS" ]; then
