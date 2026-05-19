@@ -30,33 +30,33 @@ echo ""
 # Patch inject_address: change whatever value it has to 0.0.0.0:25565
 sed -i '/^[[:space:]]*#/!s|^\([[:space:]]*inject_address:[[:space:]]*\).*|\10.0.0.0:25565|' "$LISTENERS_FILE"
 
-# Disable all rate limiters for CI testing.
-# The default config has rate limiters for ip, login, motd, query, http.
-# Each has an "enable" flag we set to false.
-# We use Python for this since sed on nested YAML is fragile.
-python3 -c "
+# Disable all rate limiters for CI testing using Python/YAML.
+# Only touches rate limiter "enable" flags, not other boolean settings.
+python3 << 'PYTHON'
 import yaml
 
-with open('${LISTENERS_FILE}', 'r') as f:
+path = "${LISTENERS_FILE}"
+with open(path, "r") as f:
     config = yaml.safe_load(f)
 
-# Walk the listener list and disable all rate limiters
-if config and 'listener_list' in config:
-    for listener in config['listener_list']:
-        if 'ratelimit' in listener:
-            rl = listener['ratelimit']
-            for key in ('ip', 'login', 'motd', 'query', 'http'):
+changed = False
+if config and "listener_list" in config:
+    for listener in config["listener_list"]:
+        if "ratelimit" in listener and isinstance(listener["ratelimit"], dict):
+            rl = listener["ratelimit"]
+            for key in ("ip", "login", "motd", "query", "http"):
                 if key in rl and isinstance(rl[key], dict):
-                    rl[key]['enable'] = False
+                    if rl[key].get("enable", False):
+                        rl[key]["enable"] = False
+                        changed = True
 
-with open('${LISTENERS_FILE}', 'w') as f:
-    yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
-    print('[INFO] All rate limiters disabled for CI')
-" || echo "[WARN] Failed to disable rate limiters via Python, continuing with sed fallback"
-
-# Fallback: sed-based rate limiter disabling if python failed
-# This is a best-effort approach for nested YAML
-sed -i '/^[[:space:]]*#/!s|\(enable:[[:space:]]*\)true|\1false|' "$LISTENERS_FILE" 2>/dev/null || true
+if changed:
+    with open(path, "w") as f:
+        yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+    print("[INFO] All rate limiters disabled for CI")
+else:
+    print("[INFO] No rate limiters found to disable (may already be off)")
+PYTHON
 
 # Validate the patched file is still valid YAML
 python3 -c "import yaml; yaml.safe_load(open('${LISTENERS_FILE}'))" && \
