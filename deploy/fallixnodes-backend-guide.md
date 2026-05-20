@@ -5,12 +5,12 @@ This guide covers setting up the Paper 26.1.2 backend server on FalixNodes for t
 ## Prerequisites
 
 - FalixNodes account with a Minecraft server slot (separate from the proxy slot)
-- Java 21+ (required by Paper 26.1.2)
+- Java 25+ (required by Paper 26.1.2)
 - The backend does NOT need to be publicly accessible - only the proxy connects to it
 
 ## Important
 
-FalixNodes may not support Java 21 yet for Minecraft servers. If Java 21 is unavailable, you will need to use a different hosting provider that supports it. Paper 26.1.2 requires Java 21 minimum and will not start on Java 17.
+FalixNodes may not support Java 25 yet for Minecraft servers. If Java 25 is unavailable, you will need to use a different hosting provider that supports it. Paper 26.1.2 requires Java 25 minimum and will not start on Java 17 or Java 21.
 
 ## Steps
 
@@ -19,7 +19,7 @@ FalixNodes may not support Java 21 yet for Minecraft servers. If Java 21 is unav
 1. Log into FalixNodes panel
 2. Create a new Minecraft server
 3. Select **Paper** as the server type (version 26.1.2)
-4. Choose **Java 21** as the runtime
+4. Choose **Java 25** as the runtime
 5. Set the server port to **25566**
 
 ### 2. Upload Files
@@ -74,10 +74,10 @@ The backend server has `online-mode=false` which means anyone with direct access
 
 ## Java Version Check
 
-If Paper fails to start with a version error, check that Java 21+ is being used:
+If Paper fails to start with a version error, check that Java 25+ is being used:
 
 ```bash
 java -version
 ```
 
-If the host does not support Java 21, Paper 26.1.2 will not work. Consider using a host that supports modern Java versions.
+If the host does not support Java 25, Paper 26.1.2 will not work. Consider using a host that supports modern Java versions.
