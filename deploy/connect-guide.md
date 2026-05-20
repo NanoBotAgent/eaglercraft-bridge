@@ -39,6 +39,7 @@ wss://play.example.com:25565
 | "Outdated Client" | Eaglercraft version does not match the server protocol |
 | "Disconnected" | Check proxy logs for errors |
 | Long loading time | Normal for first connection - server generates chunks |
+| Missing `server-icon.png` crash | Place a 64x64 server-icon.png in the proxy root directory |
 
 ## Limitations
 
